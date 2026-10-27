@@ -55,6 +55,13 @@ class BetterAuthRepository implements AuthRepository {
       }
     }
 
+    final setAuthToken = response.headers.value('set-auth-token');
+    if (setAuthToken != null && setAuthToken.isNotEmpty) {
+      final rawPart = setAuthToken.split('.').first;
+      if (rawPart.isNotEmpty) return rawPart;
+      return setAuthToken;
+    }
+
     final cookies = response.headers['set-cookie'];
     if (cookies != null) {
       for (final c in cookies) {
@@ -102,6 +109,7 @@ class BetterAuthRepository implements AuthRepository {
       'Authorization': 'Bearer $token',
       'Cookie':
           'better-auth.session_token=$token; __Secure-better-auth.session_token=$token; campusfix_authorization=$token',
+      'Origin': config.origin,
     };
   }
 
@@ -114,6 +122,7 @@ class BetterAuthRepository implements AuthRepository {
       final response = await dio.post<Map<String, dynamic>>(
         '${config.authBaseUrl}/sign-in/email',
         data: {'email': email.trim(), 'password': password},
+        options: Options(headers: {'Origin': config.origin}),
       );
 
       final data = response.data;
@@ -161,6 +170,7 @@ class BetterAuthRepository implements AuthRepository {
           'email': email.trim(),
           'password': password,
         },
+        options: Options(headers: {'Origin': config.origin}),
       );
 
       final data = response.data;

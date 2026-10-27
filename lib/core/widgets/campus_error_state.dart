@@ -9,12 +9,16 @@ import 'campus_button.dart';
 class CampusErrorState extends StatelessWidget {
   const CampusErrorState({
     required this.message,
+    this.title = 'Something went wrong',
+    this.icon,
     this.onRetry,
     this.retryLabel = 'Try Again',
     super.key,
   });
 
   final String message;
+  final String title;
+  final IconData? icon;
   final VoidCallback? onRetry;
   final String retryLabel;
 
@@ -36,15 +40,15 @@ class CampusErrorState extends StatelessWidget {
                     : AppColors.statusCriticalBg,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.error_outline_rounded,
+              child: Icon(
+                icon ?? Icons.error_outline_rounded,
                 size: 40,
                 color: AppColors.statusCritical,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Something went wrong',
+              title,
               style: AppTypography.titleLarge.copyWith(
                 color: isDark
                     ? AppColors.darkTextPrimary

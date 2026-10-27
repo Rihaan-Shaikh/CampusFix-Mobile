@@ -76,11 +76,13 @@ Ensure the following tools and compatible versions are installed on your Windows
 | Tool | Required Version | Verification Command | Description / Purpose |
 | :--- | :--- | :--- | :--- |
 | **Git** | `2.40+` | `git --version` | Version control management |
-| **Flutter SDK** | `3.47.7` (channel `stable`) | `flutter --version` | Framework and runtime |
-| **Dart SDK** | `3.13.5` | `dart --version` | Bundled with Flutter SDK |
-| **Java JDK** | OpenJDK 17 (`Java 17`) | `java -version` | **Required** by Gradle 8.x/9.x and Kotlin 2.x |
+| **Flutter SDK** | `3.47.8` (channel `stable`) | `flutter --version` | Framework and runtime |
+| **Dart SDK** | `3.13.7` | `dart --version` | Bundled with Flutter SDK |
+| **Java JDK** | OpenJDK 17 (`Java 17`) | `java -version` | **Required** by Gradle 9.x and Kotlin |
 | **Android Studio** | Latest Stable | `flutter doctor -v` | Android SDK, command-line tools, and emulator |
-| **Android SDK** | API 36 / 37 | SDK Manager | Compile SDK: `36`, Target SDK: `36`, Min SDK: `24` |
+| **Android SDK Platforms**| API 36 / 35 | SDK Manager | Compile SDK: `36`, Target SDK: `36`, Min SDK: `24` |
+| **Android NDK** | `28.2.13676358` | `ndk-which` or SDK manager | Required by Flutter Android Gradle plugin |
+| **CMake** | `3.22.1` | SDK Manager | Required by native plugins (`flutter_secure_storage`) |
 | **Platform Tools** | Latest | `adb devices` | Android Debug Bridge for USB device testing |
 
 ---
@@ -94,23 +96,30 @@ Download Microsoft Build of OpenJDK 17 or Eclipse Temurin 17. In Windows System 
 - Set `JAVA_HOME` = `C:\Program Files\Eclipse Adoptium\jdk-17...`
 - Add `%JAVA_HOME%\bin` to your `Path`.
 
-### Step 2: Clone the Repository
+### Step 2: Install Android NDK & SDK Platforms
+If building Android APKs on the machine, ensure NDK `28.2.13676358` is installed:
+```powershell
+# From Android SDK cmdline-tools:
+android.exe sdk install "ndk/28.2.13676358" "platforms;android-36" "platforms;android-35" "cmake;3.22.1"
+```
+
+### Step 3: Clone the Repository
 ```powershell
 git clone <YOUR_EXISTING_REPOSITORY_URL>
 cd CampusFix-Mobile
 ```
 
-### Step 3: Install Flutter Dependencies
+### Step 4: Install Flutter Dependencies
 ```powershell
 flutter pub get
 ```
 
-### Step 4: Verify Local Toolchain Health
+### Step 5: Verify Local Toolchain Health
 ```powershell
 flutter doctor -v
 ```
 
-### Step 5: Run Static Analysis & Test Suite
+### Step 6: Run Static Analysis & Test Suite
 ```powershell
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
@@ -142,22 +151,31 @@ All environment configuration is managed via typed compile-time flags (`--dart-d
 ### 6.1 Email / Password Registration & Login
 - **Login Endpoint**: `POST /api/auth/sign-in/email`
 - **Registration Endpoint**: `POST /api/auth/sign-up/email`
+- **Required Origin Header**: Better Auth enforces CSRF validation on all state-modifying POST requests. The mobile app automatically injects:
+  ```http
+  Origin: https://campusfixed.netlify.app
+  ```
+- **Evaluation Accounts (Pre-configured on Website & Mobile)**:
+  - **Student (Member)**: `student@campusfix.local` / `Student@12345`
+  - **Administrator**: `admin@campusfix.local` / `Admin@12345`
 - **Request Body**:
   ```json
   {
-    "email": "name@university.edu",
-    "password": "user_password"
+    "email": "student@campusfix.local",
+    "password": "Student@12345"
   }
   ```
 - **Token Resolution**: The client extracts the session token defensively from:
   1. `data['token']`
   2. `data['session']['token']` or `data['session']['id']`
   3. `Set-Cookie` header (`better-auth.session_token` / `__Secure-better-auth.session_token` / `campusfix_authorization`)
+  4. Response header `set-auth-token`
 - **Profile Resolution**: Parses user details directly from `data['user']` or verifies against `GET /api/v1/auth/me` (with fallback to `GET /api/auth/get-session`).
 
 ### 6.2 Session Persistence & Restoration
 - Tokens are encrypted in secure storage (`FlutterSecureStorage`).
-- During application startup, `AuthNotifier.restoreSession()` inspects secure storage and restores the active session. If the token is invalid or expired (401), the local token is cleared cleanly.
+- On app launch, `AuthNotifier.restoreSession()` inspects secure storage and restores the active session. If the token is invalid or expired (401), the local token is cleared cleanly.
+- Unauthenticated users can freely browse public information, and are presented with an inviting "Authentication Required" card with a direct "Sign In to CampusFix" action when navigating to protected facilities features.
 
 ### 6.3 Google Native Sign-In
 - **Package Name**: `com.campusfix.app`
@@ -213,10 +231,13 @@ Output location: `build/app/outputs/flutter-apk/app-debug.apk`
 
 | Issue | Root Cause | Solution |
 | :--- | :--- | :--- |
+| **`403 Forbidden` (`Missing or null Origin`) on Login** | Better Auth requires `Origin` header on `POST /api/auth/*` | Resolved: `ApiClient` and `BetterAuthRepository` inject `Origin: https://campusfixed.netlify.app` on all HTTP calls. |
+| **`401 Unauthorized` displayed as "Unable to reach server"** | Previous error interceptor grouped 401/403 with socket disconnects | Resolved: `ApiClient` now strictly classifies `401` as `UnauthorizedException` and `403` as `ForbiddenException`. The UI presents clean "Sign In" cards rather than generic network failure alerts. |
+| **Android sdkmanager did not install NDK `28.2.13676358`** | Missing NDK bundle in local Android SDK | Install via `android.exe sdk install "ndk/28.2.13676358"` or via Android Studio SDK Manager → SDK Tools → Show Package Details → NDK `28.2.13676358`. |
 | **`ERROR: JAVA_HOME is not set`** | Java JDK is not installed or `JAVA_HOME` variable is missing | Install OpenJDK 17 and configure `JAVA_HOME` pointing to the JDK root directory |
-| **`Unable to reach server` (Connection Refused)** | Defaulting to `10.0.2.2:5000` when no local backend is running | The app now defaults to `https://campusfixed.netlify.app/api/v1`. For local dev, ensure the local server is running and run `adb reverse tcp:5000 tcp:5000` |
+| **`Unable to reach server` (Connection Refused on 10.0.2.2:5000)** | Defaulting to `10.0.2.2:5000` when no local backend is running | The app defaults to `https://campusfixed.netlify.app/api/v1`. If testing with a local backend, start the backend on port 5000 and run `adb reverse tcp:5000 tcp:5000`. |
 | **Google Sign-In `DEVELOPER_ERROR` (Code 10)** | Signing SHA-1 mismatch or Web Client ID mismatch | Verify `com.campusfix.app` and local debug SHA-1 in Google Cloud Console Credentials |
-| **Authentication token not returned** | Better Auth returned token in `session` or `Set-Cookie` | Fixed in `BetterAuthRepository` with multi-strategy token extractor |
+| **Authentication token not returned** | Better Auth returned token in `session`, `set-auth-token` header, or `Set-Cookie` | Fixed in `BetterAuthRepository` with multi-strategy token extractor |
 | **Session not persisting across restarts** | Unauthenticated screen flashed before session restoration | Handled by GoRouter reactive listenable and `AuthNotifier.restoreSession()` |
 | **Android Deep Link Not Opening App** | Intent filter not registered or URL scheme mismatch | Ensure deep link targets `campusfix://oauth-callback` or `https://campusfixed.netlify.app/issues` |
 
@@ -235,7 +256,7 @@ Output location: `build/app/outputs/flutter-apk/app-debug.apk`
 - `README.md` (master handoff guide)
 
 ### Local Files That Must NEVER Be Committed:
-- `android/local.properties` (contains older laptop's local paths `C:\Users\shaik\...`)
+- `android/local.properties` (contains machine-specific local paths `C:\Users\...`)
 - `.env` files containing private credentials
 - Keystore files (`*.keystore`, `*.jks`, `key.properties`)
 

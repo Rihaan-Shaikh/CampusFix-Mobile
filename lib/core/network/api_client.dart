@@ -1,10 +1,11 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
 import '../errors/app_exception.dart';
-
 import '../storage/secure_storage_service.dart';
 
 /// Provider for the configured Dio HTTP client.
@@ -21,19 +22,27 @@ Dio createDioClient(AppConfig config, {SecureStorageService? storageService}) {
     connectTimeout: config.connectTimeout,
     receiveTimeout: config.receiveTimeout,
     sendTimeout: config.receiveTimeout,
-    headers: const <String, dynamic>{
+    headers: <String, dynamic>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      'Origin': config.origin,
     },
   );
 
   final dio = Dio(options);
 
-  // 1. Authorization & Cookie header injection
-  if (storageService != null) {
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
+  // 1. Authorization, Cookie, and Origin header injection
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        // Always ensure Origin header is provided for Better Auth CSRF validation
+        if (!options.headers.containsKey('Origin') ||
+            options.headers['Origin'] == null ||
+            (options.headers['Origin'] as String).isEmpty) {
+          options.headers['Origin'] = config.origin;
+        }
+
+        if (storageService != null) {
           try {
             final token = await storageService.read('campusfix_auth_token');
             if (token != null && token.isNotEmpty) {
@@ -46,11 +55,11 @@ Dio createDioClient(AppConfig config, {SecureStorageService? storageService}) {
               }
             }
           } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+        }
+        return handler.next(options);
+      },
+    ),
+  );
 
   // 2. Safe idempotent GET retry interceptor for transient glitches
   dio.interceptors.add(
@@ -116,18 +125,29 @@ Dio createDioClient(AppConfig config, {SecureStorageService? storageService}) {
   return dio;
 }
 
+@visibleForTesting
+AppException mapDioExceptionToAppException(DioException error) =>
+    _mapDioException(error);
+
 AppException _mapDioException(DioException error) {
   switch (error.type) {
     case DioExceptionType.connectionTimeout:
     case DioExceptionType.sendTimeout:
     case DioExceptionType.receiveTimeout:
     case DioExceptionType.transformTimeout:
-      return NetworkException(
+      return ConnectionTimeoutException(
         'Connection timed out. Please check your internet connection.',
         error,
       );
     case DioExceptionType.connectionError:
-      return NetworkException(
+      final err = error.error;
+      if (err is SocketException) {
+        return ServerUnavailableException(
+          'Unable to reach server. Please check your connection.',
+          error,
+        );
+      }
+      return ServerUnavailableException(
         'Unable to reach server. Please check your connection.',
         error,
       );
@@ -145,9 +165,48 @@ AppException _mapDioException(DioException error) {
         } else if (data['message'] is String) {
           message = data['message'] as String;
         }
+      } else if (data is String && data.contains('<!DOCTYPE html>')) {
+        if (statusCode == 404) {
+          message = 'The requested campus endpoint was not found.';
+        } else if (statusCode != null && statusCode >= 500) {
+          message = 'The server is experiencing temporary issues. Please try again later.';
+        }
       }
-      if (statusCode == 401 || statusCode == 403) {
+
+      if (statusCode == 401) {
         return UnauthorizedException(
+          message: message,
+          statusCode: statusCode,
+          responseData: data,
+          cause: error,
+        );
+      }
+      if (statusCode == 403) {
+        return ForbiddenException(
+          message: message,
+          statusCode: statusCode,
+          responseData: data,
+          cause: error,
+        );
+      }
+      if (statusCode == 404) {
+        return NotFoundException(
+          message: message,
+          statusCode: statusCode,
+          responseData: data,
+          cause: error,
+        );
+      }
+      if (statusCode == 503) {
+        return ServerUnavailableException(
+          message.isNotEmpty && message != 'Server returned error (503)'
+              ? message
+              : 'CampusFix server is temporarily unavailable. Please try again shortly.',
+          error,
+        );
+      }
+      if (statusCode != null && statusCode >= 500) {
+        return ServerException(
           message: message,
           statusCode: statusCode,
           responseData: data,
@@ -168,6 +227,12 @@ AppException _mapDioException(DioException error) {
         error,
       );
     case DioExceptionType.unknown:
+      if (error.error is SocketException) {
+        return ServerUnavailableException(
+          'Unable to reach server. Please check your network connection.',
+          error,
+        );
+      }
       return NetworkException('Network error occurred.', error);
   }
 }

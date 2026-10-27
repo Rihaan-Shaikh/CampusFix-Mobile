@@ -326,6 +326,172 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
                     const SizedBox(height: AppSpacing.lg),
 
+                    // Evaluation Accounts (Instant Fill - matches website)
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkCard
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: AppRadius.mdBorderRadius,
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.vpn_key_outlined,
+                                size: 14,
+                                color: AppColors.brandAmber,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Evaluation Accounts (Instant Fill):',
+                                  style: AppTypography.labelSmall.copyWith(
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.lightTextSecondary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  key: const Key('demo_student_button'),
+                                  onTap: () {
+                                    _emailController.text =
+                                        'student@campusfix.local';
+                                    _passwordController.text = 'Student@12345';
+                                    _formKey.currentState?.validate();
+                                  },
+                                  borderRadius: AppRadius.smBorderRadius,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.sm,
+                                      vertical: AppSpacing.xs,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
+                                      borderRadius: AppRadius.smBorderRadius,
+                                      border: Border.all(
+                                        color: isDark
+                                            ? AppColors.darkBorder
+                                            : AppColors.lightBorder,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Student',
+                                          style: AppTypography.labelSmall
+                                              .copyWith(
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.brandAmber,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'student@campusfix.local',
+                                          style: AppTypography.bodySmall
+                                              .copyWith(
+                                                color: isDark
+                                                    ? AppColors.darkTextMuted
+                                                    : AppColors.lightTextMuted,
+                                                fontSize: 10,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: InkWell(
+                                  key: const Key('demo_admin_button'),
+                                  onTap: () {
+                                    _emailController.text =
+                                        'admin@campusfix.local';
+                                    _passwordController.text = 'Admin@12345';
+                                    _formKey.currentState?.validate();
+                                  },
+                                  borderRadius: AppRadius.smBorderRadius,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.sm,
+                                      vertical: AppSpacing.xs,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
+                                      borderRadius: AppRadius.smBorderRadius,
+                                      border: Border.all(
+                                        color: isDark
+                                            ? AppColors.darkBorder
+                                            : AppColors.lightBorder,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Administrator',
+                                          style: AppTypography.labelSmall
+                                              .copyWith(
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.brandAmber,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'admin@campusfix.local',
+                                          style: AppTypography.bodySmall
+                                              .copyWith(
+                                                color: isDark
+                                                    ? AppColors.darkTextMuted
+                                                    : AppColors.lightTextMuted,
+                                                fontSize: 10,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
                     // Navigation to Sign-up
                     Wrap(
                       alignment: WrapAlignment.center,

@@ -64,6 +64,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authNotifierProvider, (prev, next) {
+      if (next is AuthAuthenticated) {
+        ref.read(recentIssuesNotifierProvider.notifier).fetch(isRefresh: true);
+      }
+    });
+
     final authState = ref.watch(authNotifierProvider);
     final recentIssuesAsync = ref.watch(recentIssuesNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -414,30 +420,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         },
                         loading: () =>
                             const CampusLoadingSkeleton(itemCount: 2),
-                        error: (err, _) => Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.darkCard
-                                : AppColors.lightCard,
-                            borderRadius: AppRadius.lgBorderRadius,
-                            border: Border.all(
+                        error: (err, _) {
+                          final isAuthError = err is UnauthorizedException;
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
                               color: isDark
-                                  ? AppColors.darkBorder
-                                  : AppColors.lightBorder,
-                              width: 1,
+                                  ? AppColors.darkCard
+                                  : AppColors.lightCard,
+                              borderRadius: AppRadius.lgBorderRadius,
+                              border: Border.all(
+                                color: isDark
+                                    ? AppColors.darkBorder
+                                    : AppColors.lightBorder,
+                                width: 1,
+                              ),
                             ),
-                          ),
-                          child: CampusErrorState(
-                            message: err is AppException
-                                ? err.message
-                                : 'Failed to load recent issues.',
-                            onRetry: () => ref
-                                .read(recentIssuesNotifierProvider.notifier)
-                                .fetch(),
-                          ),
-                        ),
+                            child: isAuthError
+                                ? Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(
+                                          AppSpacing.md,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.brandAmber
+                                              .withValues(alpha: 0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.lock_outline_rounded,
+                                          size: 32,
+                                          color: AppColors.brandAmber,
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.md),
+                                      Text(
+                                        'Authentication Required',
+                                        style: AppTypography.titleMedium
+                                            .copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark
+                                                  ? AppColors.darkTextPrimary
+                                                  : AppColors.lightTextPrimary,
+                                            ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.xs),
+                                      Text(
+                                        'Sign in to access campus incidents, track progress, and submit work orders.',
+                                        style: AppTypography.bodySmall.copyWith(
+                                          color: isDark
+                                              ? AppColors.darkTextSecondary
+                                              : AppColors.lightTextSecondary,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: AppSpacing.md),
+                                      CampusButton(
+                                        label: 'Sign In to CampusFix',
+                                        icon: Icons.login_rounded,
+                                        isFullWidth: false,
+                                        onPressed: () =>
+                                            context.push('/sign-in'),
+                                      ),
+                                    ],
+                                  )
+                                : CampusErrorState(
+                                    title: 'Unable to Load Incidents',
+                                    message: err is AppException
+                                        ? err.message
+                                        : 'Failed to load recent issues.',
+                                    onRetry: () => ref
+                                        .read(
+                                          recentIssuesNotifierProvider.notifier,
+                                        )
+                                        .fetch(),
+                                  ),
+                          );
+                        },
                       ),
                     ],
                   ),

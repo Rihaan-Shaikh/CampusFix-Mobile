@@ -25,6 +25,10 @@ void main() {
       expect(dio.options.sendTimeout, const Duration(seconds: 10));
       expect(dio.options.headers['Accept'], 'application/json');
       expect(dio.options.headers['Content-Type'], 'application/json');
+      expect(
+        dio.options.headers['Origin'],
+        'https://staging.campusfixed.netlify.app',
+      );
       expect(dio.interceptors.length, greaterThanOrEqualTo(2));
     });
   });

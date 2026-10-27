@@ -311,10 +311,29 @@ class _IssuesScreenState extends ConsumerState<IssuesScreen> {
     }
 
     if (state.errorMessage != null && state.items.isEmpty) {
+      final isAuthError =
+          state.errorMessage!.toLowerCase().contains('authentication') ||
+          state.errorMessage!.toLowerCase().contains('unauthorized') ||
+          state.errorMessage!.toLowerCase().contains('sign in');
+
       return Center(
-        child: CampusErrorState(
-          message: state.errorMessage!,
-          onRetry: () => notifier.loadInitial(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: CampusErrorState(
+            title: isAuthError
+                ? 'Authentication Required'
+                : 'Unable to Load Issues',
+            icon: isAuthError
+                ? Icons.lock_outline_rounded
+                : Icons.cloud_off_rounded,
+            message: isAuthError
+                ? 'Please sign in with your campus account to view live issues, work orders, and maintenance updates.'
+                : state.errorMessage!,
+            retryLabel: isAuthError ? 'Sign In to CampusFix' : 'Try Again',
+            onRetry: isAuthError
+                ? () => context.push('/sign-in')
+                : () => notifier.loadInitial(),
+          ),
         ),
       );
     }
